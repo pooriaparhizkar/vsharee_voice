@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Chat</title>
+    <title>Lightweight Video Chat</title>
     <style>
+        /* --- استایل‌های قبلی --- */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f0f2f5;
@@ -13,8 +14,10 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         .container {
@@ -23,33 +26,13 @@
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             text-align: center;
-            width: 300px;
+            width: 100%;
+            max-width: 400px;
         }
 
         h2 {
             margin-top: 0;
             color: #333;
-        }
-
-        button {
-            padding: 12px 24px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            transition: background 0.3s;
-            width: 100%;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
         }
 
         #status {
@@ -58,7 +41,6 @@
             color: #666;
         }
 
-        /* استایل لیست کاربران */
         .users-box {
             margin-top: 20px;
             text-align: left;
@@ -77,7 +59,7 @@
             list-style: none;
             padding: 0;
             margin: 0;
-            max-height: 200px;
+            max-height: 150px;
             overflow-y: auto;
         }
 
@@ -89,7 +71,6 @@
             font-size: 14px;
         }
 
-        /* چراغ سبز برای نشان دادن آنلاین بودن */
         .dot {
             height: 8px;
             width: 8px;
@@ -99,24 +80,76 @@
             margin-right: 8px;
         }
 
-        /* وقتی کسی حرف میزنه این کلاس رو بهش میدیم (اختیاری) */
-        .speaking {
-            font-weight: bold;
-            color: #007bff;
+        /* --- استایل‌های جدید برای دکمه‌ها --- */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+
+        button:disabled {
+            background-color: #ccc !important;
+            cursor: not-allowed;
+        }
+
+        #mic-btn {
+            background-color: #007bff;
+        }
+
+        /* آبی پیشفرض */
+        #cam-btn {
+            background-color: #6c757d;
+        }
+
+        /* خاکستری پیشفرض (خاموش) */
+
+        /* --- استایل جدید برای شبکه ویدیو --- */
+        #video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        /* استایل تگ‌های video که لایوکیت می‌سازد */
+        video {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background: #000;
+            object-fit: cover;
+            /* پر کردن کادر */
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h2>Voice Room</h2>
+        <h2>Lightweight Room</h2>
         <div id="status">Ready to join</div>
-        <button id="btn">Join Room</button>
+
+        <div id="video-grid"></div>
+
+        <div class="controls">
+            <button id="mic-btn">Join & Speak</button>
+            <button id="cam-btn" disabled>Camera Off</button>
+        </div>
 
         <div class="users-box">
             <div class="user-count">Online: <span id="count">0</span></div>
-            <ul id="participants-list">
-            </ul>
+            <ul id="participants-list"></ul>
         </div>
     </div>
     <script type="module" src="main.js"></script>
