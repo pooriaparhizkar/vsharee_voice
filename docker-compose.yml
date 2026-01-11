@@ -1,24 +1,48 @@
 version: '3.8'
 services:
-  livekit:
+  # 1. لایوکیت جدید (اسم کانتینر متفاوت)
+  voice_livekit:
     image: livekit/livekit-server:latest
-    command: ['--dev', '--bind', '0.0.0.0']
+    container_name: voice_livekit
+    command: --config /etc/livekit.yaml
+    restart: unless-stopped
     ports:
-      - "7880:7880"
-      - "7881:7881"
+      # پورت هاست 7885 (چون 7880 اشغاله) -> پورت کانتینر 7880
+      - "7885:7880"
+      # پورت‌های UDP جدید (برای صدا)
+      - "50000-50200:50000-50200/udp"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+    networks:
+      - vsharee_web
 
-  voice-backend:
+  # 2. بکند جدید
+  voice_backend:
     build: ./server
-    ports:
-      - "4000:4000"
-    env_file:
-      - ./server/.env
+    container_name: voice_backend
+    restart: unless-stopped
+    environment:
+      - LIVEKIT_API_KEY=myvoicekey
+      - LIVEKIT_API_SECRET=voice_secret_key_new_123456
+      # اتصال داخلی به لایوکیت جدید
+      - LIVEKIT_URL=http://voice_livekit:7880
+    networks:
+      - vsharee_web
 
-  voice-frontend:
+  # 3. فرانت جدید
+  voice_frontend:
     image: node:18-alpine
+    container_name: voice_frontend
     working_dir: /app
     volumes:
       - ./client:/app
     command: sh -c "npx serve -l 3000"
-    ports:
-      - "3000:3000"
+    restart: unless-stopped
+    networks:
+      - vsharee_web
+
+# استفاده از شبکه موجود پروژه قبلی
+networks:
+  vsharee_web:
+    external: true
+    name: vsharee_default
