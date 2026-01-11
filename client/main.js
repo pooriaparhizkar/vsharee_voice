@@ -1,10 +1,10 @@
-import { Room, RoomEvent, createLocalAudioTrack, createLocalVideoTrack, AudioPresets, VideoPresets } from 'https://cdn.skypack.dev/livekit-client';
+import { Room, RoomEvent, createLocalAudioTrack, createLocalVideoTrack, AudioPresets } from 'https://cdn.skypack.dev/livekit-client';
 
 let room;
 let mic;
-let cam; // متغیر جدید برای دوربین
+let cam;
 let micMuted = false;
-let camEnabled = false; // پیش‌فرض دوربین خاموش
+let camEnabled = false;
 
 const micBtn = document.getElementById('mic-btn');
 const camBtn = document.getElementById('cam-btn');
@@ -13,41 +13,46 @@ const participantsList = document.getElementById('participants-list');
 const countSpan = document.getElementById('count');
 const videoGrid = document.getElementById('video-grid');
 
+// تابع دریافت توکن
 async function getToken() {
   const response = await fetch('/token');
   const data = await response.json();
   return data.token;
 }
 
-// --- تغییر مهم 1: هندل کردن ترک‌های ویدیویی ---
+// مدیریت دریافت ترک‌های جدید (صدا و تصویر)
 function handleTrackSubscribed(track, publication, participant) {
-  const element = track.attach(); // ساختن تگ <audio> یا <video>
+  const element = track.attach();
   
   if (track.kind === 'video') {
-    // اگر ویدیو بود، اضافه به گرید
+    // ویدیوها به گرید اضافه می‌شوند
     videoGrid.appendChild(element);
   } else {
-    // اگر صدا بود، مخفی به بدنه اضافه شود
+    // صداها به بدنه (مخفی) اضافه می‌شوند
     document.body.appendChild(element);
   }
 }
 
-// --- تغییر مهم 2: پاک کردن ویدیو هنگام قطع شدن ---
+// مدیریت حذف ترک‌ها (وقتی کسی دوربین را خاموش می‌کند یا می‌رود)
 function handleTrackUnsubscribed(track, publication, participant) {
   track.detach().forEach(element => element.remove());
 }
 
+// آپدیت لیست کاربران آنلاین
 function updateParticipants() {
   if (!room) return;
   participantsList.innerHTML = '';
   
+  // خودمان
   const myName = room.localParticipant.identity;
   addParticipantToList(myName + " (You)", true);
 
+  // بقیه
   room.remoteParticipants.forEach((participant) => {
     addParticipantToList(participant.identity, false);
   });
 
+  // تعداد کل (ریموت + خودمان)
   countSpan.innerText = room.remoteParticipants.size + 1;
 }
 
@@ -57,8 +62,9 @@ function addParticipantToList(name, isLocal) {
   participantsList.appendChild(li);
 }
 
-// --- لاجیک دکمه میکروفون ---
+// --- دکمه اتصال و میکروفون ---
 micBtn.onclick = async () => {
+  // اگر قبلاً وصل شدیم، نقش دکمه Mute/Unmute را دارد
   if (room && room.state === 'connected') {
     if (micMuted) {
       await mic.unmute();
@@ -80,15 +86,12 @@ micBtn.onclick = async () => {
     statusDiv.innerText = 'Connecting...';
     const token = await getToken();
     
-    // --- تنظیمات اتاق (سبک نگه داشتن صدا) ---
+    // تنظیمات اتاق (بهینه برای مصرف کم)
     room = new Room({
       adaptiveStream: true,
       dynacast: true,
-      // اینجا دیگه ویدیو رو غیرفعال نمیکنیم
       publishDefaults: {
-        // تنظیمات بهینه صدا (DTX)
-        audio: { dtx: true, red: true },
-        // تنظیمات بهینه ویدیو (سیمولکست برای نت ضعیف)
+        audio: { dtx: true, red: true }, // DTX: قطع ارسال دیتا در سکوت
         video: { simulcast: true } 
       }
     });
@@ -97,25 +100,28 @@ micBtn.onclick = async () => {
     room.on(RoomEvent.ParticipantConnected, () => updateParticipants());
     room.on(RoomEvent.ParticipantDisconnected, () => updateParticipants());
     room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
-    // رویداد جدید برای حذف ویدیو وقتی کسی دوربینش رو بست
     room.on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
 
     await room.connect('wss://livekit-voice.vsharee.com', token);
     statusDiv.innerText = 'Connected!';
     
-    // --- راه اندازی میکروفون (فوق سبک) ---
+    // میکروفون با تنظیمات فوق سبک (Speech Preset)
     mic = await createLocalAudioTrack({
       echoCancellation: true,
       noiseSuppression: true,
-      preset: AudioPresets.speech // بیت‌ریت پایین برای صدا
+      preset: AudioPresets.speech 
     });
     await room.localParticipant.publishTrack(mic);
     
-    // آپدیت وضعیت دکمه‌ها
-    mic.unmute(); micMuted = false;
-    micBtn.innerText = 'Mute Mic'; micBtn.style.backgroundColor = '#dc3545';
+    // وضعیت اولیه دکمه‌ها
+    mic.unmute(); 
+    micMuted = false;
+    micBtn.innerText = 'Mute Mic'; 
+    micBtn.style.backgroundColor = '#dc3545';
     micBtn.disabled = false;
-    camBtn.disabled = false; // فعال کردن دکمه دوربین بعد از اتصال
+    
+    // فعال کردن دکمه دوربین
+    camBtn.disabled = false;
 
     updateParticipants();
 
@@ -126,32 +132,32 @@ micBtn.onclick = async () => {
   }
 };
 
-// --- لاجیک جدید: دکمه دوربین ---
+// --- دکمه دوربین ---
 camBtn.onclick = async () => {
   if (!room || room.state !== 'connected') return;
 
-  camBtn.disabled = true; // جلوگیری از کلیک تکراری
+  camBtn.disabled = true;
 
   if (!camEnabled) {
-    // === روشن کردن دوربین با تنظیمات فوق سبک ===
+    // === روشن کردن دوربین ===
     try {
       cam = await createLocalVideoTrack({
-        // رزولوشن بسیار پایین (320x240)
-        resolution: VideoPresets.qvga.resolution,
-        // فریم ریت پایین (نصف حالت عادی)
+        // رزولوشن دستی (خیلی سبک - ۳۲۰ در ۲۴۰)
+        resolution: { width: 320, height: 240 },
+        // ۱۵ فریم بر ثانیه برای صرفه‌جویی در نت
         frameRate: 15,
-        // دوربین جلو (user) یا پشت (environment)
         facingMode: 'user' 
       });
       
-      // انتشار و نمایش ویدیو خودمان
       await room.localParticipant.publishTrack(cam);
+      
+      // نمایش تصویر خودمان
       const element = cam.attach();
-      videoGrid.appendChild(element); // اضافه کردن به گرید
+      videoGrid.appendChild(element);
 
       camEnabled = true;
       camBtn.innerText = 'Camera On';
-      camBtn.style.backgroundColor = '#dc3545'; // قرمز برای خاموش کردن
+      camBtn.style.backgroundColor = '#dc3545';
 
     } catch (e) {
       console.error('Failed to get camera', e);
@@ -160,20 +166,19 @@ camBtn.onclick = async () => {
   } else {
     // === خاموش کردن دوربین ===
     if (cam) {
-      // توقف انتشار و حذف ترک
       room.localParticipant.unpublishTrack(cam);
       cam.stop();
-      cam.detach().forEach(el => el.remove()); // حذف از صفحه
+      cam.detach().forEach(el => el.remove());
       cam = null;
     }
     camEnabled = false;
     camBtn.innerText = 'Camera Off';
-    camBtn.style.backgroundColor = '#6c757d'; // خاکستری
+    camBtn.style.backgroundColor = '#6c757d';
   }
   camBtn.disabled = false;
 };
 
-
+// خروج هنگام بستن تب
 window.onbeforeunload = () => {
   if (room) room.disconnect();
 };
