@@ -8,6 +8,7 @@ let camEnabled = false;
 
 const micBtn = document.getElementById('mic-btn');
 const camBtn = document.getElementById('cam-btn');
+const endBtn = document.getElementById('end-btn'); // دکمه جدید
 const statusDiv = document.getElementById('status');
 const participantsList = document.getElementById('participants-list');
 const countSpan = document.getElementById('count');
@@ -20,22 +21,55 @@ async function getToken() {
   return data.token;
 }
 
-// مدیریت دریافت ترک‌های جدید (صدا و تصویر)
+// --- مدیریت فول اسکرین ---
+function toggleFullScreen(wrapperDiv) {
+  if (!document.fullscreenElement) {
+    wrapperDiv.requestFullscreen().catch(err => {
+      console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+// --- مدیریت دریافت ترک‌های جدید ---
 function handleTrackSubscribed(track, publication, participant) {
-  const element = track.attach();
+  const element = track.attach(); // المان <video> یا <audio>
   
   if (track.kind === 'video') {
-    // ویدیوها به گرید اضافه می‌شوند
-    videoGrid.appendChild(element);
+    // 1. ساختن یک wrapper برای ویدیو و دکمه
+    const wrapper = document.createElement('div');
+    wrapper.className = 'video-wrapper';
+    wrapper.id = 'wrapper-' + track.sid;
+
+    // 2. ساخت دکمه فول اسکرین
+    const fsBtn = document.createElement('button');
+    fsBtn.className = 'fs-btn';
+    fsBtn.innerHTML = '⛶'; // آیکون
+    fsBtn.title = "Full Screen";
+    fsBtn.onclick = () => toggleFullScreen(wrapper);
+
+    // 3. اضافه کردن ویدیو و دکمه به wrapper
+    wrapper.appendChild(element);
+    wrapper.appendChild(fsBtn);
+
+    // 4. اضافه کردن wrapper به گرید
+    videoGrid.appendChild(wrapper);
   } else {
-    // صداها به بدنه (مخفی) اضافه می‌شوند
+    // صداها تغییری نمی‌کنند
     document.body.appendChild(element);
   }
 }
 
-// مدیریت حذف ترک‌ها (وقتی کسی دوربین را خاموش می‌کند یا می‌رود)
+// --- مدیریت حذف ترک‌ها ---
 function handleTrackUnsubscribed(track, publication, participant) {
   track.detach().forEach(element => element.remove());
+  
+  if (track.kind === 'video') {
+    // حذف کل wrapper مربوط به این ویدیو
+    const wrapper = document.getElementById('wrapper-' + track.sid);
+    if (wrapper) wrapper.remove();
+  }
 }
 
 // آپدیت لیست کاربران آنلاین
@@ -43,16 +77,13 @@ function updateParticipants() {
   if (!room) return;
   participantsList.innerHTML = '';
   
-  // خودمان
   const myName = room.localParticipant.identity;
   addParticipantToList(myName + " (You)", true);
 
-  // بقیه
   room.remoteParticipants.forEach((participant) => {
     addParticipantToList(participant.identity, false);
   });
 
-  // تعداد کل (ریموت + خودمان)
   countSpan.innerText = room.remoteParticipants.size + 1;
 }
 
@@ -64,39 +95,35 @@ function addParticipantToList(name, isLocal) {
 
 // --- دکمه اتصال و میکروفون ---
 micBtn.onclick = async () => {
-  // اگر قبلاً وصل شدیم، نقش دکمه Mute/Unmute را دارد
   if (room && room.state === 'connected') {
     if (micMuted) {
       await mic.unmute();
       micMuted = false;
       micBtn.innerText = 'Mute Mic';
-      micBtn.style.backgroundColor = '#dc3545';
+      micBtn.style.backgroundColor = '#dc3545'; // قرمز در حالت فعال برای قطع کردن
     } else {
       await mic.mute();
       micMuted = true;
       micBtn.innerText = 'Unmute Mic';
-      micBtn.style.backgroundColor = '#28a745';
+      micBtn.style.backgroundColor = '#28a745'; // سبز برای وصل کردن
     }
     return;
   }
 
-  // پروسه اتصال اولیه
   try {
     micBtn.disabled = true;
     statusDiv.innerText = 'Connecting...';
     const token = await getToken();
     
-    // تنظیمات اتاق (بهینه برای مصرف کم)
     room = new Room({
       adaptiveStream: true,
       dynacast: true,
       publishDefaults: {
-        audio: { dtx: true, red: true }, // DTX: قطع ارسال دیتا در سکوت
+        audio: { dtx: true, red: true },
         video: { simulcast: true } 
       }
     });
 
-    // رویدادها
     room.on(RoomEvent.ParticipantConnected, () => updateParticipants());
     room.on(RoomEvent.ParticipantDisconnected, () => updateParticipants());
     room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
@@ -105,7 +132,6 @@ micBtn.onclick = async () => {
     await room.connect('wss://livekit-voice.vsharee.com', token);
     statusDiv.innerText = 'Connected!';
     
-    // میکروفون با تنظیمات فوق سبک (Speech Preset)
     mic = await createLocalAudioTrack({
       echoCancellation: true,
       noiseSuppression: true,
@@ -113,15 +139,14 @@ micBtn.onclick = async () => {
     });
     await room.localParticipant.publishTrack(mic);
     
-    // وضعیت اولیه دکمه‌ها
     mic.unmute(); 
     micMuted = false;
     micBtn.innerText = 'Mute Mic'; 
     micBtn.style.backgroundColor = '#dc3545';
     micBtn.disabled = false;
     
-    // فعال کردن دکمه دوربین
     camBtn.disabled = false;
+    endBtn.disabled = false; // فعال کردن دکمه اتمام جلسه
 
     updateParticipants();
 
@@ -139,21 +164,33 @@ camBtn.onclick = async () => {
   camBtn.disabled = true;
 
   if (!camEnabled) {
-    // === روشن کردن دوربین ===
     try {
       cam = await createLocalVideoTrack({
-        // رزولوشن دستی (خیلی سبک - ۳۲۰ در ۲۴۰)
         resolution: { width: 320, height: 240 },
-        // ۱۵ فریم بر ثانیه برای صرفه‌جویی در نت
         frameRate: 15,
         facingMode: 'user' 
       });
       
-      await room.localParticipant.publishTrack(cam);
+      // انتشار ترک ویدیو
+      const pub = await room.localParticipant.publishTrack(cam);
       
-      // نمایش تصویر خودمان
+      // برای نمایش تصویر خودمان هم از همان منطق wrapper استفاده میکنیم
+      // چون publishTrack مستقیماً TrackSubscribed را برای خودمان صدا نمیزند
+      // باید دستی آن را به دام اضافه کنیم:
       const element = cam.attach();
-      videoGrid.appendChild(element);
+      
+      const wrapper = document.createElement('div');
+      wrapper.className = 'video-wrapper';
+      wrapper.id = 'wrapper-local'; // آی‌دی ثابت برای خودمان
+
+      const fsBtn = document.createElement('button');
+      fsBtn.className = 'fs-btn';
+      fsBtn.innerHTML = '⛶';
+      fsBtn.onclick = () => toggleFullScreen(wrapper);
+
+      wrapper.appendChild(element);
+      wrapper.appendChild(fsBtn);
+      videoGrid.appendChild(wrapper);
 
       camEnabled = true;
       camBtn.innerText = 'Camera On';
@@ -164,11 +201,13 @@ camBtn.onclick = async () => {
       statusDiv.innerText = 'Camera Error: ' + e.message;
     }
   } else {
-    // === خاموش کردن دوربین ===
     if (cam) {
       room.localParticipant.unpublishTrack(cam);
       cam.stop();
       cam.detach().forEach(el => el.remove());
+      // حذف wrapper خودمان
+      const localWrapper = document.getElementById('wrapper-local');
+      if(localWrapper) localWrapper.remove();
       cam = null;
     }
     camEnabled = false;
@@ -178,7 +217,24 @@ camBtn.onclick = async () => {
   camBtn.disabled = false;
 };
 
-// خروج هنگام بستن تب
+// --- دکمه اتمام جلسه ---
+endBtn.onclick = async () => {
+    if (!confirm('Are you sure you want to end the session for everyone?')) return;
+
+    try {
+        // درخواست به سرور برای بستن اتاق
+        await fetch('/end-room', { method: 'POST' });
+        
+        // قطع اتصال لوکال
+        if (room) room.disconnect();
+        
+        statusDiv.innerText = 'Session Ended.';
+        window.location.reload(); // ریلود صفحه برای ریست شدن
+    } catch (error) {
+        console.error('Error ending room:', error);
+    }
+};
+
 window.onbeforeunload = () => {
   if (room) room.disconnect();
 };

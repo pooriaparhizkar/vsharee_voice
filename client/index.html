@@ -4,12 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Avooria's Chat ♥️</title>
+    <title>Avooria's Dark Chat 🌑</title>
     <style>
-        /* --- استایل‌های قبلی --- */
+        /* --- استایل‌های تم دارک --- */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
+            background-color: #121212;
+            /* پس‌زمینه خیلی تیره */
+            color: #e0e0e0;
+            /* متن روشن */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -21,37 +24,39 @@
         }
 
         .container {
-            background: white;
+            background: #1e1e1e;
+            /* پس‌زمینه کارت */
             padding: 2rem;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
             text-align: center;
             width: 100%;
-            max-width: 400px;
+            max-width: 600px;
+            /* کمی عریض‌تر برای ویدیوها */
         }
 
         h2 {
             margin-top: 0;
-            color: #333;
+            color: #ffffff;
         }
 
         #status {
             margin: 15px 0;
             font-size: 14px;
-            color: #666;
+            color: #aaa;
         }
 
         .users-box {
             margin-top: 20px;
             text-align: left;
-            border-top: 1px solid #eee;
+            border-top: 1px solid #333;
             padding-top: 10px;
         }
 
         .user-count {
             font-weight: bold;
             font-size: 14px;
-            color: #444;
+            color: #ccc;
             margin-bottom: 10px;
         }
 
@@ -65,10 +70,11 @@
 
         li {
             padding: 8px;
-            border-bottom: 1px solid #f9f9f9;
+            border-bottom: 1px solid #333;
             display: flex;
             align-items: center;
             font-size: 14px;
+            color: #ddd;
         }
 
         .dot {
@@ -80,9 +86,10 @@
             margin-right: 8px;
         }
 
-        /* --- استایل‌های جدید برای دکمه‌ها --- */
+        /* --- دکمه‌ها --- */
         .controls {
             display: flex;
+            flex-wrap: wrap;
             gap: 10px;
             margin-bottom: 15px;
         }
@@ -90,16 +97,22 @@
         button {
             flex: 1;
             padding: 12px;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
             color: white;
             border: none;
             border-radius: 6px;
-            transition: background 0.3s;
+            transition: background 0.3s, transform 0.1s;
+            min-width: 100px;
+        }
+
+        button:active {
+            transform: scale(0.98);
         }
 
         button:disabled {
-            background-color: #ccc !important;
+            background-color: #444 !important;
+            color: #888;
             cursor: not-allowed;
         }
 
@@ -107,30 +120,86 @@
             background-color: #007bff;
         }
 
-        /* آبی پیشفرض */
+        #mic-btn:hover {
+            background-color: #0056b3;
+        }
+
         #cam-btn {
             background-color: #6c757d;
         }
 
-        /* خاکستری پیشفرض (خاموش) */
+        #cam-btn:hover {
+            background-color: #545b62;
+        }
 
-        /* --- استایل جدید برای شبکه ویدیو --- */
+        /* دکمه قرمز برای اتمام جلسه */
+        #end-btn {
+            background-color: #dc3545;
+            flex-basis: 100%;
+            /* کل ردیف را بگیرد یا جدا باشد */
+        }
+
+        #end-btn:hover {
+            background-color: #a71d2a;
+        }
+
+        /* --- استایل جدید شبکه ویدیو و دکمه فول اسکرین --- */
         #video-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
             margin-bottom: 20px;
             width: 100%;
         }
 
-        /* استایل تگ‌های video که لایوکیت می‌سازد */
-        video {
-            width: 100%;
-            height: auto;
+        /* کانتینر دور هر ویدیو برای قرار دادن دکمه روی آن */
+        .video-wrapper {
+            position: relative;
             border-radius: 8px;
+            overflow: hidden;
             background: #000;
+            aspect-ratio: 4/3;
+            /* نسبت تصویر ثابت */
+        }
+
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
-            /* پر کردن کادر */
+            display: block;
+        }
+
+        /* دکمه فول اسکرین شناور */
+        .fs-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            /* مخفی در حالت عادی */
+            transition: opacity 0.2s;
+            flex: none;
+            /* جلوگیری از تغییر سایز توسط فلکس والد */
+        }
+
+        /* نمایش دکمه وقتی موس روی ویدیو میرود */
+        .video-wrapper:hover .fs-btn {
+            opacity: 1;
+        }
+
+        .fs-btn:hover {
+            background: rgba(0, 0, 0, 0.9);
         }
     </style>
 </head>
@@ -145,6 +214,7 @@
         <div class="controls">
             <button id="mic-btn">Join & Speak</button>
             <button id="cam-btn" disabled>Camera Off</button>
+            <button id="end-btn" disabled>End Session</button>
         </div>
 
         <div class="users-box">
