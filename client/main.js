@@ -24,6 +24,7 @@ function handleTrackSubscribed(track, publication, participant) {
 }
 
 // 3. تابع آپدیت کردن لیست کاربران (جدید)
+// 3. تابع آپدیت کردن لیست کاربران (اصلاح شده)
 function updateParticipants() {
   if (!room) return;
 
@@ -33,13 +34,13 @@ function updateParticipants() {
   const myName = room.localParticipant.identity;
   addParticipantToList(myName + " (You)", true);
 
-  // ب) اضافه کردن بقیه (Remote)
-  room.participants.forEach((participant) => {
+  // ب) اضافه کردن بقیه (Remote) -> تغییر مهم اینجاست: remoteParticipants
+  room.remoteParticipants.forEach((participant) => {
     addParticipantToList(participant.identity, false);
   });
 
-  // پ) آپدیت شمارنده (ریموت‌ها + خودمان)
-  countSpan.innerText = room.participants.size + 1;
+  // پ) آپدیت شمارنده
+  countSpan.innerText = room.remoteParticipants.size + 1;
 }
 
 // تابع کمکی برای ساخت HTML هر نفر
