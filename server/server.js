@@ -65,4 +65,23 @@ app.post('/end-room', async (req, res) => {
   }
 });
 
+// --- دکمه قرمز اورژانسی: حذف اجباری اتاق ---
+app.get('/force-kill', async (req, res) => {
+  try {
+    const roomName = 'public-room'; // همان اسمی که در کد استفاده کردی
+    
+    // این دستور به سرور لایوکیت میگه اتاق رو کلاً نابود کن
+    // این کار باعث میشه همه (شامل همسرت) فوراً دیسکانکت بشن
+    await svc.deleteRoom(roomName);
+    
+    console.log(`Room ${roomName} destroyed!`);
+    res.send(`<h1>اتاق با موفقیت بسته شد. همسرتان دیسکانکت شد. خیالت راحت! 😴</h1>`);
+    
+  } catch (error) {
+    // حتی اگر اتاق پیدا نشد هم یعنی قبلا بسته شده، پس خوبه
+    console.log("Error deleting room (maybe already empty):", error.message);
+    res.send(`<h1>اتاق قبلاً بسته شده بود یا مشکلی پیش آمد. (ارور: ${error.message})</h1>`);
+  }
+});
+
 app.listen(4000, () => console.log('Backend running on :4000'));
