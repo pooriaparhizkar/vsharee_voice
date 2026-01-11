@@ -1,0 +1,11 @@
+{
+  "name": "voice-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "express": "^4.19.0",
+    "cors": "^2.8.5",
+    "livekit-server-sdk": "^2.6.0",
+    "dotenv": "^16.0.0"
+  }
+}
