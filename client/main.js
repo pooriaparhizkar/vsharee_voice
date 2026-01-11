@@ -1,86 +1,127 @@
-// client/main.js
 import { Room, RoomEvent, createLocalAudioTrack } from 'https://cdn.skypack.dev/livekit-client';
 
 let room;
 let mic;
-let muted = true; // پیش‌فرض میوت باشیم یا نه (تصمیم با خودته)
+let muted = false; // بهتره پیش‌فرض false باشه که وقتی وصل شد صداش بره (یا برعکس طبق سلیقه)
 const btn = document.getElementById('btn');
-const statusDiv = document.getElementById('status'); // برای نمایش وضعیت
+const statusDiv = document.getElementById('status');
+const participantsList = document.getElementById('participants-list');
+const countSpan = document.getElementById('count');
 
-// تابعی برای گرفتن توکن از بکند خودت
+// 1. تابع گرفتن توکن
 async function getToken() {
-  const response = await fetch('http://localhost:4000/token');
+  const response = await fetch('/token');
   const data = await response.json();
   return data.token;
 }
 
-// تابعی برای هندل کردن صدای دیگران
+// 2. هندل کردن صدای دیگران
 function handleTrackSubscribed(track, publication, participant) {
   if (track.kind === 'audio') {
-    // این متد یک المنت <audio> مخفی می‌سازد و صدا را پخش می‌کند
     const element = track.attach();
     document.body.appendChild(element);
   }
 }
 
+// 3. تابع آپدیت کردن لیست کاربران (جدید)
+function updateParticipants() {
+  if (!room) return;
+
+  participantsList.innerHTML = '';
+  
+  // الف) اضافه کردن خودمان (Local)
+  const myName = room.localParticipant.identity;
+  addParticipantToList(myName + " (You)", true);
+
+  // ب) اضافه کردن بقیه (Remote)
+  room.participants.forEach((participant) => {
+    addParticipantToList(participant.identity, false);
+  });
+
+  // پ) آپدیت شمارنده (ریموت‌ها + خودمان)
+  countSpan.innerText = room.participants.size + 1;
+}
+
+// تابع کمکی برای ساخت HTML هر نفر
+function addParticipantToList(name, isLocal) {
+  const li = document.createElement('li');
+  li.innerHTML = `<span class="dot"></span> ${name}`;
+  participantsList.appendChild(li);
+}
+
+
 btn.onclick = async () => {
-  if (!room) {
-    btn.disabled = true;
-    statusDiv.innerText = 'Connecting...';
-    
-    try {
-      // 1. دریافت توکن
-      const token = await getToken();
-      
-      // 2. ساخت اتاق
-      room = new Room({
-        // تنظیمات برای اینکه صدا به محض ورود بهتر پخش شه
-        adaptiveStream: true,
-        dynacast: true,
-      });
-
-      // 3. لیسنر برای شنیدن صدای دیگران (خیلی مهم)
-      room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
-
-      // 4. وصل شدن به لایوکیت با توکن
-      await room.connect('ws://localhost:7880', token);
-      statusDiv.innerText = 'Connected! Join others.';
-
-      // 5. آماده‌سازی میکروفون خودت
-      mic = await createLocalAudioTrack();
-      await room.localParticipant.publishTrack(mic);
-      
-      // وضعیت اولیه دکمه
-      if (muted) {
-        mic.mute();
-        btn.innerText = 'Unmute';
-      } else {
-        mic.unmute();
-        btn.innerText = 'Mute';
-      }
-      btn.disabled = false;
-
-    } catch (e) {
-      console.error(e);
-      statusDiv.innerText = 'Error: ' + e.message;
-      btn.disabled = false;
+  // اگر قبلاً وصل شدیم، دکمه کار میوت/آن‌میوت انجام میده
+  if (room && room.state === 'connected') {
+    if (muted) {
+      await mic.unmute();
+      muted = false;
+      btn.innerText = 'Mute';
+      btn.style.backgroundColor = '#dc3545'; // قرمز برای میوت
+    } else {
+      await mic.mute();
+      muted = true;
+      btn.innerText = 'Unmute';
+      btn.style.backgroundColor = '#28a745'; // سبز برای صحبت
     }
     return;
   }
 
-  // لاجیک ساده میوت/آن‌میوت
-  if (muted) {
-    mic.unmute();
+  // پروسه اتصال
+  try {
+    btn.disabled = true;
+    statusDiv.innerText = 'Connecting...';
+    
+    const token = await getToken();
+    
+    room = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+    });
+
+    // --- رویدادهای جدید برای لیست کاربران ---
+    
+    // وقتی کسی جدید میاد
+    room.on(RoomEvent.ParticipantConnected, (participant) => {
+      console.log('Someone joined:', participant.identity);
+      updateParticipants();
+    });
+
+    // وقتی کسی میره
+    room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+      console.log('Someone left:', participant.identity);
+      updateParticipants();
+    });
+
+    // برای شنیدن صدا
+    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+
+    // اتصال به سرور
+    await room.connect('wss://livekit-voice.vsharee.com', token);
+    statusDiv.innerText = 'Connected!';
+    
+    // راه اندازی میکروفون
+    mic = await createLocalAudioTrack();
+    await room.localParticipant.publishTrack(mic);
+    
+    // تنظیم وضعیت اولیه دکمه
+    mic.unmute(); // پیش‌فرض باز باشه
     muted = false;
     btn.innerText = 'Mute';
-  } else {
-    mic.mute();
-    muted = true;
-    btn.innerText = 'Unmute';
+    btn.style.backgroundColor = '#dc3545';
+    btn.disabled = false;
+
+    // آپدیت اولیه لیست (که خودمون رو نشون بده)
+    updateParticipants();
+
+  } catch (e) {
+    console.error(e);
+    statusDiv.innerText = 'Error: ' + e.message;
+    btn.disabled = false;
   }
 };
 
-// برای اینکه وقتی پنجره بسته شد از اتاق خارج شه
+// خروج تمیز هنگام بستن پنجره
 window.onbeforeunload = () => {
   if (room) room.disconnect();
 };

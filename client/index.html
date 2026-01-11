@@ -1,35 +1,124 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voice Chat</title>
     <style>
         body {
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 300px;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #333;
         }
 
         button {
-            padding: 15px 30px;
-            font-size: 20px;
+            padding: 12px 24px;
+            font-size: 16px;
             cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
 
         #status {
-            margin-top: 20px;
+            margin: 15px 0;
+            font-size: 14px;
             color: #666;
+        }
+
+        /* استایل لیست کاربران */
+        .users-box {
+            margin-top: 20px;
+            text-align: left;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+
+        .user-count {
+            font-weight: bold;
+            font-size: 14px;
+            color: #444;
+            margin-bottom: 10px;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        li {
+            padding: 8px;
+            border-bottom: 1px solid #f9f9f9;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        /* چراغ سبز برای نشان دادن آنلاین بودن */
+        .dot {
+            height: 8px;
+            width: 8px;
+            background-color: #2ecc71;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        /* وقتی کسی حرف میزنه این کلاس رو بهش میدیم (اختیاری) */
+        .speaking {
+            font-weight: bold;
+            color: #007bff;
         }
     </style>
 </head>
 
 <body>
-    <button id="btn">Join & Speak</button>
-    <div id="status">Ready to connect</div>
+    <div class="container">
+        <h2>Voice Room</h2>
+        <div id="status">Ready to join</div>
+        <button id="btn">Join Room</button>
+
+        <div class="users-box">
+            <div class="user-count">Online: <span id="count">0</span></div>
+            <ul id="participants-list">
+            </ul>
+        </div>
+    </div>
     <script type="module" src="main.js"></script>
 </body>
 
