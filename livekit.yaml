@@ -1,0 +1,11 @@
+port: 7880
+log_level: info
+
+rtc:
+  udp_port: 7882
+  port_range_start: 50000
+  port_range_end: 50200
+  use_external_ip: true
+
+keys:
+  myvoicekey: "voice_secret_key_new_123456"
