@@ -28,13 +28,17 @@ function toggleFullScreen(wrapperDiv) {
   const video = wrapperDiv.querySelector('video');
   if (!video) return;
 
-  // iOS Safari fullscreen
+  // iOS Safari fullscreen (video-only)
   if (video.webkitEnterFullscreen) {
+    // Ensure playback resumes after exiting fullscreen (iOS bug fix)
+    video.onwebkitendfullscreen = () => {
+      video.play().catch(() => {});
+    };
     video.webkitEnterFullscreen();
     return;
   }
 
-  // Standard fullscreen
+  // Standard fullscreen (desktop / Android)
   if (!document.fullscreenElement) {
     wrapperDiv.requestFullscreen().catch(() => {});
   } else {
@@ -54,6 +58,13 @@ function handleTrackSubscribed(track, publication, participant) {
     const wrapper = document.createElement('div');
     wrapper.className = 'video-wrapper';
     wrapper.id = 'wrapper-' + track.sid;
+
+    // Mobile-friendly: tap video to go fullscreen
+    wrapper.addEventListener('pointerup', (e) => {
+      // Ignore taps on fullscreen button itself
+      if (e.target.classList.contains('fs-btn')) return;
+      toggleFullScreen(wrapper);
+    });
 
     // 2. ساخت دکمه فول اسکرین
     const fsBtn = document.createElement('button');
@@ -205,6 +216,11 @@ camBtn.onclick = async () => {
       wrapper.className = 'video-wrapper';
       wrapper.id = 'wrapper-local'; // آی‌دی ثابت برای خودمان
 
+      wrapper.addEventListener('pointerup', (e) => {
+        if (e.target.classList.contains('fs-btn')) return;
+        toggleFullScreen(wrapper);
+      });
+
       const fsBtn = document.createElement('button');
       fsBtn.className = 'fs-btn';
       fsBtn.innerHTML = '⛶';
@@ -278,6 +294,11 @@ flipBtn.onclick = async () => {
   const wrapper = document.createElement('div');
   wrapper.className = 'video-wrapper';
   wrapper.id = 'wrapper-local';
+
+  wrapper.addEventListener('pointerup', (e) => {
+    if (e.target.classList.contains('fs-btn')) return;
+    toggleFullScreen(wrapper);
+  });
 
   const fsBtn = document.createElement('button');
   fsBtn.className = 'fs-btn';
