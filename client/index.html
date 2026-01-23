@@ -201,6 +201,11 @@
         .fs-btn:hover {
             background: rgba(0, 0, 0, 0.9);
         }
+
+        /* Mirror local (front) camera */
+        .mirror {
+            transform: scaleX(-1);
+        }
     </style>
 </head>
 
@@ -214,6 +219,7 @@
         <div class="controls">
             <button id="mic-btn">Join & Speak</button>
             <button id="cam-btn" disabled>Camera Off</button>
+            <button id="flip-btn" disabled>Flip Camera</button>
             <button id="end-btn" disabled>End Session</button>
         </div>
 

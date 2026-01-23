@@ -5,10 +5,12 @@ let mic;
 let cam;
 let micMuted = false;
 let camEnabled = false;
+let currentFacingMode = 'user';
 
 const micBtn = document.getElementById('mic-btn');
 const camBtn = document.getElementById('cam-btn');
 const endBtn = document.getElementById('end-btn'); // دکمه جدید
+const flipBtn = document.getElementById('flip-btn');
 const statusDiv = document.getElementById('status');
 const participantsList = document.getElementById('participants-list');
 const countSpan = document.getElementById('count');
@@ -23,10 +25,18 @@ async function getToken() {
 
 // --- مدیریت فول اسکرین ---
 function toggleFullScreen(wrapperDiv) {
+  const video = wrapperDiv.querySelector('video');
+  if (!video) return;
+
+  // iOS Safari fullscreen
+  if (video.webkitEnterFullscreen) {
+    video.webkitEnterFullscreen();
+    return;
+  }
+
+  // Standard fullscreen
   if (!document.fullscreenElement) {
-    wrapperDiv.requestFullscreen().catch(err => {
-      console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-    });
+    wrapperDiv.requestFullscreen().catch(() => {});
   } else {
     document.exitFullscreen();
   }
@@ -35,6 +45,9 @@ function toggleFullScreen(wrapperDiv) {
 // --- مدیریت دریافت ترک‌های جدید ---
 function handleTrackSubscribed(track, publication, participant) {
   const element = track.attach(); // المان <video> یا <audio>
+  element.playsInline = true;
+  element.setAttribute('playsinline', '');
+  element.setAttribute('webkit-playsinline', '');
   
   if (track.kind === 'video') {
     // 1. ساختن یک wrapper برای ویدیو و دکمه
@@ -178,6 +191,15 @@ camBtn.onclick = async () => {
       // چون publishTrack مستقیماً TrackSubscribed را برای خودمان صدا نمیزند
       // باید دستی آن را به دام اضافه کنیم:
       const element = cam.attach();
+      element.muted = true;
+      element.playsInline = true;
+      element.setAttribute('playsinline', '');
+      element.setAttribute('webkit-playsinline', '');
+
+      // Mirror only local front camera
+      if (currentFacingMode === 'user') {
+        element.classList.add('mirror');
+      }
       
       const wrapper = document.createElement('div');
       wrapper.className = 'video-wrapper';
@@ -196,6 +218,8 @@ camBtn.onclick = async () => {
       camBtn.innerText = 'Camera On';
       camBtn.style.backgroundColor = '#dc3545';
 
+      flipBtn.disabled = false;
+
     } catch (e) {
       console.error('Failed to get camera', e);
       statusDiv.innerText = 'Camera Error: ' + e.message;
@@ -213,8 +237,56 @@ camBtn.onclick = async () => {
     camEnabled = false;
     camBtn.innerText = 'Camera Off';
     camBtn.style.backgroundColor = '#6c757d';
+    flipBtn.disabled = true;
   }
   camBtn.disabled = false;
+};
+
+flipBtn.onclick = async () => {
+  if (!cam || !room) return;
+
+  // Toggle facing mode
+  currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+
+  // Remove current camera
+  room.localParticipant.unpublishTrack(cam);
+  cam.stop();
+  cam.detach().forEach(el => el.remove());
+
+  const localWrapper = document.getElementById('wrapper-local');
+  if (localWrapper) localWrapper.remove();
+
+  // Recreate camera with new facing mode
+  cam = await createLocalVideoTrack({
+    resolution: { width: 320, height: 240 },
+    frameRate: 15,
+    facingMode: currentFacingMode
+  });
+
+  await room.localParticipant.publishTrack(cam);
+
+  const element = cam.attach();
+  element.muted = true;
+  element.playsInline = true;
+  element.setAttribute('playsinline', '');
+  element.setAttribute('webkit-playsinline', '');
+
+  if (currentFacingMode === 'user') {
+    element.classList.add('mirror');
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'video-wrapper';
+  wrapper.id = 'wrapper-local';
+
+  const fsBtn = document.createElement('button');
+  fsBtn.className = 'fs-btn';
+  fsBtn.innerHTML = '⛶';
+  fsBtn.onclick = () => toggleFullScreen(wrapper);
+
+  wrapper.appendChild(element);
+  wrapper.appendChild(fsBtn);
+  videoGrid.appendChild(wrapper);
 };
 
 // --- دکمه اتمام جلسه ---
@@ -229,6 +301,7 @@ endBtn.onclick = async () => {
         if (room) room.disconnect();
         
         statusDiv.innerText = 'Session Ended.';
+        currentFacingMode = 'user';
         window.location.reload(); // ریلود صفحه برای ریست شدن
     } catch (error) {
         console.error('Error ending room:', error);
