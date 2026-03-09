@@ -50,6 +50,21 @@ function setChatAvailability(enabled) {
 function setChatVisibility(visible) {
   if (!chatBox) return;
   chatBox.classList.toggle('is-hidden', !visible);
+  if (!visible) {
+    chatBox.style.height = '';
+    chatBox.style.maxHeight = '';
+  }
+}
+
+function syncChatBoxHeight() {
+  if (!chatBox || chatBox.classList.contains('is-hidden')) return;
+
+  const fallbackHeight = Math.min(Math.round(window.innerHeight * 0.65), 520);
+  const gridHeight = Math.round(videoGrid.getBoundingClientRect().height);
+  const targetHeight = Math.max(320, Math.min(gridHeight || fallbackHeight, 700));
+
+  chatBox.style.height = `${targetHeight}px`;
+  chatBox.style.maxHeight = `${targetHeight}px`;
 }
 
 function playNotificationBeep() {
@@ -133,6 +148,7 @@ chatSendBtn.onclick = sendChatMessage;
 chatInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') sendChatMessage();
 });
+window.addEventListener('resize', syncChatBoxHeight);
 
 // تابع دریافت توکن
 async function getToken() {
@@ -197,6 +213,7 @@ function handleTrackSubscribed(track, publication, participant) {
 
     // 4. اضافه کردن wrapper به گرید
     videoGrid.appendChild(wrapper);
+    syncChatBoxHeight();
   } else {
     // صداها تغییری نمی‌کنند
     document.body.appendChild(element);
@@ -211,6 +228,7 @@ function handleTrackUnsubscribed(track, publication, participant) {
     // حذف کل wrapper مربوط به این ویدیو
     const wrapper = document.getElementById('wrapper-' + track.sid);
     if (wrapper) wrapper.remove();
+    syncChatBoxHeight();
   }
 }
 
@@ -295,6 +313,7 @@ micBtn.onclick = async () => {
     camBtn.disabled = false;
     endBtn.disabled = false; // فعال کردن دکمه اتمام جلسه
     setChatVisibility(true);
+    syncChatBoxHeight();
     setChatAvailability(true);
     appendChatMessage('System', 'You joined the room chat.', 'system');
 
@@ -355,6 +374,7 @@ camBtn.onclick = async () => {
       wrapper.appendChild(element);
       wrapper.appendChild(fsBtn);
       videoGrid.appendChild(wrapper);
+      syncChatBoxHeight();
 
       camEnabled = true;
       camBtn.innerText = 'Camera On';
@@ -380,6 +400,7 @@ camBtn.onclick = async () => {
     camBtn.innerText = 'Camera Off';
     camBtn.style.backgroundColor = '#6c757d';
     flipBtn.disabled = true;
+    syncChatBoxHeight();
   }
   camBtn.disabled = false;
 };
@@ -434,6 +455,7 @@ flipBtn.onclick = async () => {
   wrapper.appendChild(element);
   wrapper.appendChild(fsBtn);
   videoGrid.appendChild(wrapper);
+  syncChatBoxHeight();
 };
 
 // --- دکمه اتمام جلسه ---
