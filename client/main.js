@@ -3,9 +3,12 @@ import { Room, RoomEvent, createLocalAudioTrack, createLocalVideoTrack, AudioPre
 let room;
 let mic;
 let cam;
+let audioContext;
 let micMuted = false;
 let camEnabled = false;
 let currentFacingMode = 'user';
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
 
 const micBtn = document.getElementById('mic-btn');
 const camBtn = document.getElementById('cam-btn');
@@ -15,6 +18,121 @@ const statusDiv = document.getElementById('status');
 const participantsList = document.getElementById('participants-list');
 const countSpan = document.getElementById('count');
 const videoGrid = document.getElementById('video-grid');
+const chatBox = document.querySelector('.chat-box');
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const chatSendBtn = document.getElementById('chat-send-btn');
+
+chatInput.disabled = true;
+
+function escapeHtml(input) {
+  return input
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function appendChatMessage(sender, message, type = 'other') {
+  const li = document.createElement('li');
+  li.className = `chat-message ${type}`;
+  li.innerHTML = `<span class="chat-meta">${escapeHtml(sender)}</span>${escapeHtml(message)}`;
+  chatMessages.appendChild(li);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function setChatAvailability(enabled) {
+  chatInput.disabled = !enabled;
+  chatSendBtn.disabled = !enabled;
+}
+
+function setChatVisibility(visible) {
+  if (!chatBox) return;
+  chatBox.classList.toggle('is-hidden', !visible);
+}
+
+function playNotificationBeep() {
+  try {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => {});
+    }
+
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 900;
+    gainNode.gain.value = 0.0001;
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    const now = audioContext.currentTime;
+    gainNode.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+    oscillator.start(now);
+    oscillator.stop(now + 0.16);
+  } catch (err) {
+    console.warn('Beep failed:', err);
+  }
+}
+
+function parseDataPayload(payload) {
+  if (typeof payload === 'string') return payload;
+  if (payload instanceof Uint8Array) return textDecoder.decode(payload);
+  return '';
+}
+
+function handleDataReceived(payload, participant) {
+  const text = parseDataPayload(payload);
+  if (!text) return;
+
+  try {
+    const data = JSON.parse(text);
+    if (data.type !== 'chat' || typeof data.message !== 'string') return;
+
+    const senderName = participant?.identity || data.sender || 'Guest';
+    appendChatMessage(senderName, data.message, 'other');
+    playNotificationBeep();
+  } catch {
+    // ignore non-chat payloads
+  }
+}
+
+async function sendChatMessage() {
+  const message = chatInput.value.trim();
+  if (!message || !room || room.state !== 'connected') return;
+
+  const packet = {
+    type: 'chat',
+    message,
+    sender: room.localParticipant.identity,
+    timestamp: Date.now(),
+  };
+
+  try {
+    const encoded = textEncoder.encode(JSON.stringify(packet));
+    try {
+      await room.localParticipant.publishData(encoded, { reliable: true, topic: 'chat' });
+    } catch {
+      await room.localParticipant.publishData(encoded);
+    }
+
+    appendChatMessage('You', message, 'me');
+    chatInput.value = '';
+  } catch (err) {
+    console.error('Chat send failed:', err);
+    statusDiv.innerText = 'Chat Error: failed to send message.';
+  }
+}
+
+chatSendBtn.onclick = sendChatMessage;
+chatInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') sendChatMessage();
+});
 
 // تابع دریافت توکن
 async function getToken() {
@@ -152,6 +270,11 @@ micBtn.onclick = async () => {
     room.on(RoomEvent.ParticipantDisconnected, () => updateParticipants());
     room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
     room.on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+    room.on(RoomEvent.DataReceived, handleDataReceived);
+    room.on(RoomEvent.Disconnected, () => {
+      setChatVisibility(false);
+      setChatAvailability(false);
+    });
 
     await room.connect('wss://livekit-voice.vsharee.com', token);
     statusDiv.innerText = 'Connected!';
@@ -171,6 +294,9 @@ micBtn.onclick = async () => {
     
     camBtn.disabled = false;
     endBtn.disabled = false; // فعال کردن دکمه اتمام جلسه
+    setChatVisibility(true);
+    setChatAvailability(true);
+    appendChatMessage('System', 'You joined the room chat.', 'system');
 
     updateParticipants();
 

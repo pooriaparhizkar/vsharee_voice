@@ -31,8 +31,7 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
             text-align: center;
             width: 100%;
-            max-width: 600px;
-            /* کمی عریض‌تر برای ویدیوها */
+            max-width: 980px;
         }
 
         h2 {
@@ -60,7 +59,7 @@
             margin-bottom: 10px;
         }
 
-        ul {
+        .users-box ul {
             list-style: none;
             padding: 0;
             margin: 0;
@@ -68,7 +67,7 @@
             overflow-y: auto;
         }
 
-        li {
+        .users-box li {
             padding: 8px;
             border-bottom: 1px solid #333;
             display: flex;
@@ -144,11 +143,19 @@
         }
 
         /* --- استایل جدید شبکه ویدیو و دکمه فول اسکرین --- */
+        .content-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+            align-items: start;
+        }
+
         #video-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 0;
             width: 100%;
         }
 
@@ -206,6 +213,107 @@
         .mirror {
             transform: scaleX(-1);
         }
+
+        .chat-box {
+            border: 1px solid #333;
+            border-radius: 10px;
+            background: #181818;
+            display: flex;
+            flex-direction: column;
+            min-height: 320px;
+            padding: 10px;
+            gap: 10px;
+        }
+
+        .is-hidden {
+            display: none !important;
+        }
+
+        .chat-title {
+            text-align: left;
+            font-size: 14px;
+            color: #bbb;
+            font-weight: 600;
+        }
+
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: left;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .chat-message {
+            max-width: 85%;
+            padding: 8px 10px;
+            border-radius: 10px;
+            font-size: 13px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .chat-message.me {
+            align-self: flex-end;
+            background: #0d6efd;
+            color: #fff;
+        }
+
+        .chat-message.other {
+            align-self: flex-start;
+            background: #2b2b2b;
+            color: #e5e5e5;
+        }
+
+        .chat-message.system {
+            align-self: center;
+            background: #343a40;
+            color: #cfd3d8;
+            font-size: 12px;
+        }
+
+        .chat-meta {
+            display: block;
+            font-size: 11px;
+            opacity: 0.8;
+            margin-bottom: 3px;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        #chat-input {
+            flex: 1;
+            border: 1px solid #3a3a3a;
+            background: #111;
+            color: #eee;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        #chat-send-btn {
+            flex: none;
+            min-width: 84px;
+            background: #198754;
+        }
+
+        #chat-send-btn:hover {
+            background: #146c43;
+        }
+
+        @media (max-width: 900px) {
+            .content-layout {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 
@@ -214,7 +322,18 @@
         <h2>Avooria's Chat ♥️</h2>
         <div id="status">Ready to join</div>
 
-        <div id="video-grid"></div>
+        <div class="content-layout">
+            <div id="video-grid"></div>
+
+            <div class="chat-box is-hidden">
+                <div class="chat-title">Room Chat</div>
+                <ul id="chat-messages"></ul>
+                <div class="chat-input-row">
+                    <input id="chat-input" type="text" placeholder="Type a message..." maxlength="500" />
+                    <button id="chat-send-btn" disabled>Send</button>
+                </div>
+            </div>
+        </div>
 
         <div class="controls">
             <button id="mic-btn">Join & Speak</button>
