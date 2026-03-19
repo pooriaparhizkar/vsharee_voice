@@ -95,6 +95,44 @@ function playNotificationBeep() {
   }
 }
 
+function isBuzzCommand(message) {
+  return message.trim().toUpperCase() === 'BUZZ';
+}
+
+function playBuzzAlarm() {
+  try {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => {});
+    }
+
+    const now = audioContext.currentTime;
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(220, now);
+    oscillator.frequency.setValueAtTime(180, now + 0.12);
+    oscillator.frequency.setValueAtTime(220, now + 0.24);
+    oscillator.frequency.setValueAtTime(180, now + 0.36);
+    oscillator.frequency.setValueAtTime(220, now + 0.48);
+
+    gainNode.gain.setValueAtTime(0.0001, now);
+    gainNode.gain.exponentialRampToValueAtTime(0.2, now + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.62);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.65);
+  } catch (err) {
+    console.warn('Buzz alarm failed:', err);
+  }
+}
+
 function parseDataPayload(payload) {
   if (typeof payload === 'string') return payload;
   if (payload instanceof Uint8Array) return textDecoder.decode(payload);
@@ -111,7 +149,11 @@ function handleDataReceived(payload, participant) {
 
     const senderName = participant?.identity || data.sender || 'Guest';
     appendChatMessage(senderName, data.message, 'other');
-    playNotificationBeep();
+    if (isBuzzCommand(data.message)) {
+      playBuzzAlarm();
+    } else {
+      playNotificationBeep();
+    }
   } catch {
     // ignore non-chat payloads
   }
@@ -137,6 +179,9 @@ async function sendChatMessage() {
     }
 
     appendChatMessage('You', message, 'me');
+    if (isBuzzCommand(message)) {
+      playBuzzAlarm();
+    }
     chatInput.value = '';
   } catch (err) {
     console.error('Chat send failed:', err);
