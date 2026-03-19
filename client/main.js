@@ -4,6 +4,8 @@ let room;
 let mic;
 let cam;
 let audioContext;
+let buzzAudioElement;
+let buzzAudioUrl;
 let micMuted = false;
 let camEnabled = false;
 let currentFacingMode = 'user';
@@ -99,7 +101,117 @@ function isBuzzCommand(message) {
   return message.trim().toUpperCase() === 'BUZZ';
 }
 
+function createBuzzAudioUrl() {
+  const sampleRate = 44100;
+  const durationSeconds = 0.65;
+  const frameCount = Math.floor(sampleRate * durationSeconds);
+  const channels = 1;
+  const bytesPerSample = 2;
+  const blockAlign = channels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = frameCount * blockAlign;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  function writeString(offset, value) {
+    for (let i = 0; i < value.length; i += 1) {
+      view.setUint8(offset + i, value.charCodeAt(i));
+    }
+  }
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);
+  writeString(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  const toneStepSeconds = 0.12;
+  const attackSeconds = 0.02;
+  const releaseStartSeconds = 0.5;
+
+  for (let i = 0; i < frameCount; i += 1) {
+    const t = i / sampleRate;
+    const toneBand = Math.floor(t / toneStepSeconds);
+    const frequency = toneBand % 2 === 0 ? 220 : 180;
+    const phase = 2 * Math.PI * frequency * t;
+    const square = Math.sin(phase) >= 0 ? 1 : -1;
+
+    let envelope = 1;
+    if (t < attackSeconds) {
+      envelope = t / attackSeconds;
+    } else if (t > releaseStartSeconds) {
+      envelope = Math.max(0, (durationSeconds - t) / (durationSeconds - releaseStartSeconds));
+    }
+
+    const sample = Math.max(-1, Math.min(1, square * envelope * 0.25));
+    view.setInt16(44 + (i * 2), sample * 32767, true);
+  }
+
+  return URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }));
+}
+
+function ensureBuzzAudioElement() {
+  if (buzzAudioElement) return buzzAudioElement;
+
+  if (!buzzAudioUrl) {
+    buzzAudioUrl = createBuzzAudioUrl();
+  }
+
+  buzzAudioElement = new Audio(buzzAudioUrl);
+  buzzAudioElement.preload = 'auto';
+  buzzAudioElement.playsInline = true;
+  buzzAudioElement.setAttribute('playsinline', '');
+  buzzAudioElement.setAttribute('webkit-playsinline', '');
+  buzzAudioElement.load();
+
+  return buzzAudioElement;
+}
+
+function primeBuzzAudioPlayback() {
+  const mediaTone = ensureBuzzAudioElement();
+  const previousVolume = mediaTone.volume;
+  mediaTone.volume = 0;
+
+  const primePromise = mediaTone.play();
+  if (primePromise && typeof primePromise.then === 'function') {
+    primePromise
+      .then(() => {
+        mediaTone.pause();
+        mediaTone.currentTime = 0;
+        mediaTone.volume = previousVolume;
+      })
+      .catch(() => {
+        mediaTone.volume = previousVolume;
+      });
+    return;
+  }
+
+  mediaTone.pause();
+  mediaTone.currentTime = 0;
+  mediaTone.volume = previousVolume;
+}
+
 function playBuzzAlarm() {
+  const mediaTone = ensureBuzzAudioElement();
+  mediaTone.currentTime = 0;
+  const mediaPromise = mediaTone.play();
+  if (mediaPromise && typeof mediaPromise.catch === 'function') {
+    mediaPromise.catch(() => {
+      // Fallback for environments where media element playback is rejected.
+      playBuzzAlarmWithWebAudio();
+    });
+  }
+}
+
+function playBuzzAlarmWithWebAudio() {
   try {
     if (!audioContext) {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -300,6 +412,8 @@ function addParticipantToList(name, isLocal) {
 
 // --- دکمه اتصال و میکروفون ---
 micBtn.onclick = async () => {
+  primeBuzzAudioPlayback();
+
   if (room && room.state === 'connected') {
     if (micMuted) {
       await mic.unmute();
@@ -341,6 +455,7 @@ micBtn.onclick = async () => {
 
     await room.connect('wss://livekit-voice.vsharee.com', token);
     statusDiv.innerText = 'Connected!';
+    ensureBuzzAudioElement();
     
     mic = await createLocalAudioTrack({
       echoCancellation: true,
