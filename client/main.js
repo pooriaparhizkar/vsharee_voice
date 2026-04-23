@@ -1,4 +1,4 @@
-import { Room, RoomEvent, createLocalAudioTrack, createLocalVideoTrack, AudioPresets } from 'https://cdn.skypack.dev/livekit-client';
+import { Room, RoomEvent, createLocalAudioTrack, createLocalVideoTrack, AudioPresets } from 'https://cdn.skypack.dev/livekit-client@2.15.5';
 
 let room;
 let mic;
