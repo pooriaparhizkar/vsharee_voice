@@ -1,0 +1,50 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Build outputs
+build/
+dist/
+out/
+coverage/
+.tmp/
+tmp/
+.cache/
+.eslintcache
+
+# Runtime/process artifacts
+*.pid
+*.pid.lock
+*.seed
+
+# Editor/IDE
+.vscode/
+.idea/
+*.iml
+
+# Optional local tooling files
+.vercel/
+.netlify/
+
+# Archives
+*.tgz
+*.tar
+*.zip
