@@ -2,9 +2,15 @@ import { Room, RoomEvent, createLocalAudioTrack, createLocalVideoTrack, AudioPre
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((error) => {
-      console.warn('Service worker registration failed:', error);
-    });
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+      .catch((error) => console.warn('Service worker cleanup failed:', error));
+
+    if ('caches' in window) {
+      caches.keys()
+        .then((cacheNames) => Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName))))
+        .catch((error) => console.warn('Cache cleanup failed:', error));
+    }
   });
 }
 
